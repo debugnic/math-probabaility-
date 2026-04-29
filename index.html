@@ -30,7 +30,7 @@
             width: 100%;
             max-width: 1200px;
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 1.5rem;
         }
 
@@ -48,6 +48,18 @@
         }
 
         .full-width { grid-column: 1 / -1; }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
 
         h2 { margin-top: 0; font-size: 1.25rem; color: var(--primary); }
 
@@ -119,12 +131,78 @@
         .win { color: var(--success); }
         .loss { color: var(--fail); }
 
-        canvas { max-height: 300px; }
+        canvas { 
+            max-height: 300px; 
+            width: 100% !important; 
+            height: 300px !important; 
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <div class="panel">
+        <h2>Win Condition Settings</h2>
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Number of Dice:</label>
+            <select id="diceCount" onchange="updateWinCondition()" style="width: 100%; padding: 0.75rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; cursor: pointer;">
+                <option value="1">1 Die</option>
+                <option value="2">2 Dice</option>
+                <option value="3">3 Dice</option>
+                <option value="4">4 Dice</option>
+                <option value="5">5 Dice</option>
+                <option value="6">6 Dice</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Coin Result:</label>
+            <select id="coinCondition" onchange="updateWinCondition()" style="width: 100%; padding: 0.75rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; cursor: pointer;">
+                <option value="heads">Heads (H)</option>
+                <option value="tails">Tails (T)</option>
+                <option value="any">Any Coin Result</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Die Condition:</label>
+            <select id="dieCondition" onchange="updateWinCondition()" style="width: 100%; padding: 0.75rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; cursor: pointer;">
+                <option value="even">Even (2,4,6)</option>
+                <option value="odd">Odd (1,3,5)</option>
+                <option value="six">Six (6)</option>
+                <option value="one">One (1)</option>
+                <option value="greater3">Greater than 3 (4,5,6)</option>
+                <option value="less4">Less than 4 (1,2,3)</option>
+                <option value="any">Any Die Result</option>
+                <option value="sum_even">Sum is Even</option>
+                <option value="sum_odd">Sum is Odd</option>
+                <option value="sum_greater_10">Sum > 10</option>
+                <option value="sum_less_7">Sum < 7</option>
+                <option value="custom_greater">Greater than (custom)</option>
+                <option value="custom_less">Less than (custom)</option>
+                <option value="custom_equal">Equal to (custom)</option>
+                <option value="custom_sum_greater">Sum > (custom)</option>
+                <option value="custom_sum_less">Sum < (custom)</option>
+                <option value="custom_sum_equal">Sum = (custom)</option>
+            </select>
+        </div>
+        <div id="customDieOptions" style="margin-bottom: 1rem; display: none;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Custom Value:</label>
+            <input type="number" id="customDieValue" min="1" max="36" value="7" onchange="updateWinCondition()" style="width: 100%; padding: 0.75rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px;">
+            <small id="customValueHint" style="color: var(--text); font-size: 0.75rem; margin-top: 0.25rem; display: block;">Range: 1-6 for single die, 2-36 for multiple dice</small>
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Logic:</label>
+            <select id="logicOperator" onchange="updateWinCondition()" style="width: 100%; padding: 0.75rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; cursor: pointer;">
+                <option value="and">AND (Both must be true)</option>
+                <option value="or">OR (Either can be true)</option>
+            </select>
+        </div>
+        <div style="background: #0f172a; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem;">
+            <strong>Current Rule:</strong>
+            <div id="winRuleDisplay" style="color: var(--primary); margin-top: 0.5rem;">Coin is Tails AND Die is Even</div>
+            <div id="theoreticalProb" style="color: var(--success); margin-top: 0.5rem; font-weight: 600;">Theoretical Probability: 50.00%</div>
+        </div>
+    </div>
+
     <div class="panel">
         <h2>Simulation Controls</h2>
         <div class="input-group">
@@ -140,23 +218,41 @@
                 <span class="stat-label">Win Frequency</span>
                 <span id="winRate" class="stat-val">0%</span>
             </div>
+            <div class="stat-card">
+                <span class="stat-label">Expected Wins</span>
+                <span id="expectedWins" class="stat-val">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Deviation</span>
+                <span id="deviation" class="stat-val">0%</span>
+            </div>
         </div>
     </div>
 
     <div class="panel">
-        <h2>Frequency Table</h2>
-        <table id="freqTable" style="width: 100%; border-collapse: collapse; color: var(--text);">
-            <thead>
-                <tr style="border-bottom: 1px solid #334155;">
-                    <th style="padding: 0.5rem; text-align: left;">Outcome</th>
-                    <th style="padding: 0.5rem; text-align: right;">Count</th>
-                    <th style="padding: 0.5rem; text-align: right;">Percentage</th>
-                </tr>
-            </thead>
-            <tbody id="freqTableBody">
-                <!-- Rows will be added by JS -->
-            </tbody>
-        </table>
+        <h2>Random Number Generator</h2>
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Generator Type:</label>
+            <select id="rngType" style="width: 100%; padding: 0.75rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; cursor: pointer;">
+                <option value="coin">Coin Flip</option>
+                <option value="die">Single Die (1-6)</option>
+                <option value="dice">Multiple Dice</option>
+                <option value="range">Custom Range</option>
+            </select>
+        </div>
+        <div id="rngOptions" style="margin-bottom: 1rem;">
+            <!-- Dynamic options will be added here -->
+        </div>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+            <input type="number" id="rngCount" value="1" min="1" max="100" placeholder="Count" style="flex: 1; padding: 0.75rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px;">
+            <button onclick="generateRandom()" style="flex: 2;">Generate</button>
+            <button onclick="generateMultiple()" style="flex: 2;">Generate Multiple</button>
+        </div>
+        <div style="background: #0f172a; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem;">
+            <strong>Last Result:</strong>
+            <div id="rngResult" style="color: var(--primary); margin-top: 0.5rem; font-size: 1.2rem; font-weight: 600;">--</div>
+            <div id="rngStats" style="color: var(--text); margin-top: 0.5rem; font-size: 0.8rem;">--</div>
+        </div>
     </div>
 
     <div class="panel">
@@ -173,6 +269,330 @@
 <script>
     let chart;
     let history = [];
+    
+    // Win condition variables
+    let winConditions = {
+        diceCount: 1, // number of dice
+        coin: 'tails', // 'heads', 'tails', or 'any'
+        die: 'even',   // 'even', 'odd', 'six', 'one', 'greater3', 'less4', 'any', 'sum_even', 'sum_odd', 'sum_greater_10', 'sum_less_7', 'custom_greater', 'custom_less', 'custom_equal', 'custom_sum_greater', 'custom_sum_less', 'custom_sum_equal'
+        logic: 'and',   // 'and' or 'or'
+        customValue: 7 // custom threshold value
+    };
+
+    function checkWin(dice, coin) {
+        // coin: 1 = heads, 2 = tails
+        const coinValue = coin === 1 ? 'heads' : 'tails';
+        
+        // Check coin condition
+        let coinMatch = false;
+        if (winConditions.coin === 'any') {
+            coinMatch = true;
+        } else if (winConditions.coin === 'heads') {
+            coinMatch = coinValue === 'heads';
+        } else if (winConditions.coin === 'tails') {
+            coinMatch = coinValue === 'tails';
+        }
+        
+        // Check die condition
+        let dieMatch = false;
+        if (winConditions.diceCount === 1) {
+            const die = dice[0];
+            switch(winConditions.die) {
+                case 'any':
+                    dieMatch = true;
+                    break;
+                case 'even':
+                    dieMatch = die % 2 === 0;
+                    break;
+                case 'odd':
+                    dieMatch = die % 2 === 1;
+                    break;
+                case 'six':
+                    dieMatch = die === 6;
+                    break;
+                case 'one':
+                    dieMatch = die === 1;
+                    break;
+                case 'greater3':
+                    dieMatch = die > 3;
+                    break;
+                case 'less4':
+                    dieMatch = die < 4;
+                    break;
+                case 'custom_greater':
+                    dieMatch = die > winConditions.customValue;
+                    break;
+                case 'custom_less':
+                    dieMatch = die < winConditions.customValue;
+                    break;
+                case 'custom_equal':
+                    dieMatch = die === winConditions.customValue;
+                    break;
+                case 'sum_even':
+                case 'sum_odd':
+                case 'sum_greater_10':
+                case 'sum_less_7':
+                case 'custom_sum_greater':
+                case 'custom_sum_less':
+                case 'custom_sum_equal':
+                    // For single die, these don't make sense, so treat as false
+                    dieMatch = false;
+                    break;
+            }
+        } else {
+            // Multiple dice - calculate sum
+            const sum = dice.reduce((a, b) => a + b, 0);
+            switch(winConditions.die) {
+                case 'any':
+                    dieMatch = true;
+                    break;
+                case 'even':
+                    dieMatch = sum % 2 === 0;
+                    break;
+                case 'odd':
+                    dieMatch = sum % 2 === 1;
+                    break;
+                case 'six':
+                    dieMatch = sum === 6;
+                    break;
+                case 'one':
+                    dieMatch = sum === winConditions.diceCount; // minimum sum
+                    break;
+                case 'greater3':
+                    dieMatch = sum > 3;
+                    break;
+                case 'less4':
+                    dieMatch = sum < 4;
+                    break;
+                case 'sum_even':
+                    dieMatch = sum % 2 === 0;
+                    break;
+                case 'sum_odd':
+                    dieMatch = sum % 2 === 1;
+                    break;
+                case 'sum_greater_10':
+                    dieMatch = sum > 10;
+                    break;
+                case 'sum_less_7':
+                    dieMatch = sum < 7;
+                    break;
+                case 'custom_greater':
+                case 'custom_sum_greater':
+                    dieMatch = sum > winConditions.customValue;
+                    break;
+                case 'custom_less':
+                case 'custom_sum_less':
+                    dieMatch = sum < winConditions.customValue;
+                    break;
+                case 'custom_equal':
+                case 'custom_sum_equal':
+                    dieMatch = sum === winConditions.customValue;
+                    break;
+            }
+        }
+        
+        // Apply logic operator
+        if (winConditions.logic === 'and') {
+            return coinMatch && dieMatch;
+        } else {
+            return coinMatch || dieMatch;
+        }
+    }
+
+    function calculateTheoreticalProbability() {
+        const coinProb = winConditions.coin === 'any' ? 1 : 0.5;
+        let dieProb = 0;
+        
+        if (winConditions.diceCount === 1) {
+            // Single die probabilities
+            switch(winConditions.die) {
+                case 'any':
+                    dieProb = 1;
+                    break;
+                case 'even':
+                case 'odd':
+                    dieProb = 0.5;
+                    break;
+                case 'six':
+                case 'one':
+                    dieProb = 1/6;
+                    break;
+                case 'greater3':
+                    dieProb = 3/6; // 4,5,6
+                    break;
+                case 'less4':
+                    dieProb = 3/6; // 1,2,3
+                    break;
+                case 'custom_greater':
+                    // Count numbers greater than custom value (1-6)
+                    const greaterCount = Math.max(0, 6 - winConditions.customValue);
+                    dieProb = greaterCount / 6;
+                    break;
+                case 'custom_less':
+                    // Count numbers less than custom value (1-6)
+                    const lessCount = Math.max(0, winConditions.customValue - 1);
+                    dieProb = lessCount / 6;
+                    break;
+                case 'custom_equal':
+                    // Only one number equals custom value (if valid)
+                    dieProb = (winConditions.customValue >= 1 && winConditions.customValue <= 6) ? 1/6 : 0;
+                    break;
+                case 'sum_even':
+                case 'sum_odd':
+                case 'sum_greater_10':
+                case 'sum_less_7':
+                case 'custom_sum_greater':
+                case 'custom_sum_less':
+                case 'custom_sum_equal':
+                    dieProb = 0; // Not applicable for single die
+                    break;
+            }
+        } else {
+            // Multiple dice - calculate exact probabilities
+            const totalOutcomes = Math.pow(6, winConditions.diceCount);
+            let favorableOutcomes = 0;
+            
+            // Generate all possible dice combinations and count favorable outcomes
+            function generateSums(currentSum, diceLeft, minSum, maxSum) {
+                if (diceLeft === 0) {
+                    // Check if this sum meets the condition
+                    switch(winConditions.die) {
+                        case 'any':
+                            return 1;
+                        case 'even':
+                            return currentSum % 2 === 0 ? 1 : 0;
+                        case 'odd':
+                            return currentSum % 2 === 1 ? 1 : 0;
+                        case 'six':
+                            return currentSum === 6 ? 1 : 0;
+                        case 'one':
+                            return currentSum === winConditions.diceCount ? 1 : 0;
+                        case 'greater3':
+                            return currentSum > 3 ? 1 : 0;
+                        case 'less4':
+                            return currentSum < 4 ? 1 : 0;
+                        case 'sum_even':
+                            return currentSum % 2 === 0 ? 1 : 0;
+                        case 'sum_odd':
+                            return currentSum % 2 === 1 ? 1 : 0;
+                        case 'sum_greater_10':
+                            return currentSum > 10 ? 1 : 0;
+                        case 'sum_less_7':
+                            return currentSum < 7 ? 1 : 0;
+                        case 'custom_greater':
+                        case 'custom_sum_greater':
+                            return currentSum > winConditions.customValue ? 1 : 0;
+                        case 'custom_less':
+                        case 'custom_sum_less':
+                            return currentSum < winConditions.customValue ? 1 : 0;
+                        case 'custom_equal':
+                        case 'custom_sum_equal':
+                            return currentSum === winConditions.customValue ? 1 : 0;
+                        default:
+                            return 0;
+                    }
+                }
+                
+                let count = 0;
+                for (let die = 1; die <= 6; die++) {
+                    count += generateSums(currentSum + die, diceLeft - 1, minSum, maxSum);
+                }
+                return count;
+            }
+            
+            favorableOutcomes = generateSums(0, winConditions.diceCount, winConditions.diceCount, winConditions.diceCount * 6);
+            dieProb = favorableOutcomes / totalOutcomes;
+        }
+        
+        if (winConditions.logic === 'and') {
+            return coinProb * dieProb;
+        } else {
+            // P(A or B) = P(A) + P(B) - P(A and B)
+            return coinProb + dieProb - (coinProb * dieProb);
+        }
+    }
+
+    function updateWinCondition() {
+        winConditions.diceCount = parseInt(document.getElementById('diceCount').value);
+        winConditions.coin = document.getElementById('coinCondition').value;
+        winConditions.die = document.getElementById('dieCondition').value;
+        winConditions.logic = document.getElementById('logicOperator').value;
+        winConditions.customValue = parseInt(document.getElementById('customDieValue').value) || 7;
+        
+        // Update custom input constraints
+        const customInput = document.getElementById('customDieValue');
+        const maxValue = winConditions.diceCount === 1 ? 6 : winConditions.diceCount * 6;
+        customInput.max = maxValue;
+        customInput.min = 1;
+        
+        // Update hint text
+        const hintElement = document.getElementById('customValueHint');
+        if (winConditions.diceCount === 1) {
+            hintElement.innerText = 'Range: 1-6 for single die';
+        } else {
+            hintElement.innerText = `Range: ${winConditions.diceCount}-${winConditions.diceCount * 6} for ${winConditions.diceCount} dice sum`;
+        }
+        
+        // Adjust current value if it's out of range
+        if (winConditions.customValue > maxValue) {
+            winConditions.customValue = maxValue;
+            customInput.value = maxValue;
+        } else if (winConditions.customValue < 1) {
+            winConditions.customValue = 1;
+            customInput.value = 1;
+        }
+        
+        // Show/hide custom input field
+        const customOptions = ['custom_greater', 'custom_less', 'custom_equal', 'custom_sum_greater', 'custom_sum_less', 'custom_sum_equal'];
+        const customDiv = document.getElementById('customDieOptions');
+        if (customOptions.includes(winConditions.die)) {
+            customDiv.style.display = 'block';
+        } else {
+            customDiv.style.display = 'none';
+        }
+        
+        updateWinRuleDisplay();
+        updateTheoreticalProbability();
+    }
+
+    function updateWinRuleDisplay() {
+        const diceText = winConditions.diceCount === 1 ? 'Die' : `${winConditions.diceCount} Dice`;
+        const coinText = winConditions.coin.charAt(0).toUpperCase() + winConditions.coin.slice(1);
+        const dieText = {
+            'even': winConditions.diceCount === 1 ? 'Even (2,4,6)' : 'Sum is Even',
+            'odd': winConditions.diceCount === 1 ? 'Odd (1,3,5)' : 'Sum is Odd',
+            'six': winConditions.diceCount === 1 ? 'Six' : 'Sum is 6',
+            'one': winConditions.diceCount === 1 ? 'One' : `Sum is ${winConditions.diceCount}`,
+            'greater3': winConditions.diceCount === 1 ? 'Greater than 3' : 'Sum > 3',
+            'less4': winConditions.diceCount === 1 ? 'Less than 4' : 'Sum < 4',
+            'any': 'Any',
+            'sum_even': 'Sum is Even',
+            'sum_odd': 'Sum is Odd',
+            'sum_greater_10': 'Sum > 10',
+            'sum_less_7': 'Sum < 7',
+            'custom_greater': winConditions.diceCount === 1 ? `Greater than ${winConditions.customValue}` : `Sum > ${winConditions.customValue}`,
+            'custom_less': winConditions.diceCount === 1 ? `Less than ${winConditions.customValue}` : `Sum < ${winConditions.customValue}`,
+            'custom_equal': winConditions.diceCount === 1 ? `Equal to ${winConditions.customValue}` : `Sum = ${winConditions.customValue}`,
+            'custom_sum_greater': `Sum > ${winConditions.customValue}`,
+            'custom_sum_less': `Sum < ${winConditions.customValue}`,
+            'custom_sum_equal': `Sum = ${winConditions.customValue}`
+        }[winConditions.die];
+        
+        const logicText = winConditions.logic === 'and' ? 'AND' : 'OR';
+        const ruleText = `Coin is ${coinText} ${logicText} ${diceText} is ${dieText}`;
+        document.getElementById('winRuleDisplay').innerText = ruleText;
+    }
+
+    function updateTheoreticalProbability() {
+        const probability = calculateTheoreticalProbability();
+        document.getElementById('theoreticalProb').innerText = `Theoretical Probability: ${(probability * 100).toFixed(2)}%`;
+        
+        // Update chart theoretical line
+        if (chart) {
+            chart.data.datasets[1].label = `Theoretical (${(probability * 100).toFixed(1)}%)`;
+            chart.update();
+        }
+    }
 
     function initChart() {
         const ctx = document.getElementById('freqChart').getContext('2d');
@@ -211,24 +631,49 @@
         log.innerHTML = '';
         
         let wins = 0;
-        let freq = {
-            heads: [0,0,0,0,0,0], // die 1-6
-            tails: [0,0,0,0,0,0]
-        };
+        let freq = {};
+        
+        // Initialize frequency object based on dice count
+        const coinTypes = ['heads', 'tails'];
+        if (winConditions.diceCount === 1) {
+            coinTypes.forEach(coin => {
+                freq[coin] = [0,0,0,0,0,0]; // die 1-6
+            });
+        } else {
+            // For multiple dice, we'll track sum frequencies
+            coinTypes.forEach(coin => {
+                freq[coin] = {};
+                for (let sum = winConditions.diceCount; sum <= winConditions.diceCount * 6; sum++) {
+                    freq[coin][sum] = 0;
+                }
+            });
+        }
         
         let chartLabels = [];
         let chartData = [];
         let theoryData = [];
+        const theoreticalProb = calculateTheoreticalProbability();
 
         for (let i = 1; i <= trials; i++) {
-            const die = Math.floor(Math.random() * 6) + 1;
-            const coin = Math.floor(Math.random() * 2) + 1;
+            // Roll dice
+            const dice = [];
+            for (let d = 0; d < winConditions.diceCount; d++) {
+                dice.push(Math.floor(Math.random() * 6) + 1);
+            }
+            const dieSum = dice.reduce((a, b) => a + b, 0);
             
-            const isWin = (die % 2 === 0) === (coin === 2);
+            const coin = Math.floor(Math.random() * 2) + 1; // 1 = heads, 2 = tails
+            const coinType = coin === 1 ? 'heads' : 'tails';
+            
+            const isWin = checkWin(dice, coin);
             if (isWin) wins++;
 
-            if (coin === 1) freq.heads[die - 1]++;
-            else freq.tails[die - 1]++;
+            // Update frequency
+            if (winConditions.diceCount === 1) {
+                freq[coinType][dice[0] - 1]++;
+            } else {
+                freq[coinType][dieSum] = (freq[coinType][dieSum] || 0) + 1;
+            }
 
             const currentRate = (wins / i) * 100;
 
@@ -236,14 +681,17 @@
             if (trials < 500 || i % Math.floor(trials/100) === 0) {
                 chartLabels.push(i);
                 chartData.push(currentRate);
-                theoryData.push(50);
+                theoryData.push(theoreticalProb * 100);
             }
 
             // Log only first 50 results to UI to avoid crash
             if (i <= 50) {
+                const diceDisplay = winConditions.diceCount === 1 ? 
+                    `Die ${dice[0]}` : 
+                    `Dice [${dice.join(',')}] (Sum: ${dieSum})`;
                 const entry = document.createElement('div');
                 entry.className = isWin ? 'win' : 'loss';
-                entry.innerText = `Trial ${i}: Die ${die}, ${coin === 1 ? 'Heads' : 'Tails'} -> ${isWin ? 'WIN' : 'LOSS'}`;
+                entry.innerText = `Trial ${i}: ${diceDisplay}, ${coin === 1 ? 'Heads' : 'Tails'} -> ${isWin ? 'WIN' : 'LOSS'}`;
                 log.appendChild(entry);
             }
         }
@@ -252,6 +700,14 @@
         document.getElementById('totalTrials').innerText = trials.toLocaleString();
         document.getElementById('winRate').innerText = ((wins/trials)*100).toFixed(2) + '%';
         
+        // Calculate expected wins and deviation
+        const expectedWinsCount = trials * theoreticalProb;
+        const deviationPercent = expectedWinsCount > 0 ? ((wins - expectedWinsCount) / expectedWinsCount) * 100 : 0;
+        
+        document.getElementById('expectedWins').innerText = expectedWinsCount.toFixed(1);
+        document.getElementById('deviation').innerText = 
+            (deviationPercent > 0 ? '+' : '') + deviationPercent.toFixed(1) + '%';
+        
         // Update Frequency Table
         updateFrequencyTable(freq, trials);
         
@@ -259,6 +715,7 @@
         chart.data.labels = chartLabels;
         chart.data.datasets[0].data = chartData;
         chart.data.datasets[1].data = theoryData;
+        chart.data.datasets[1].label = `Theoretical (${(theoreticalProb * 100).toFixed(1)}%)`;
         chart.update();
     }
 
@@ -270,37 +727,163 @@
         let totalWins = 0;
         let totalLosses = 0;
         
-        coins.forEach(coin => {
-            for (let die = 1; die <= 6; die++) {
-                const count = freq[coin.toLowerCase()][die - 1];
-                const isWin = (coin === 'Heads' && die % 2 === 1) || (coin === 'Tails' && die % 2 === 0);
-                const label = `${coin}.${die}`;
-                addTableRow(tbody, label, count, total, isWin);
-                if (isWin) totalWins += count;
-                else totalLosses += count;
-            }
-        });
+        if (winConditions.diceCount === 1) {
+            // Single die table
+            coins.forEach(coin => {
+                for (let die = 1; die <= 6; die++) {
+                    const count = freq[coin.toLowerCase()][die - 1];
+                    const dieNum = die;
+                    const coinNum = coin === 'Heads' ? 1 : 2;
+                    const isWin = checkWin([dieNum], coinNum);
+                    const label = `${coin}.${die}`;
+                    addTableRow(tbody, label, count, total, isWin);
+                    if (isWin) totalWins += count;
+                    else totalLosses += count;
+                }
+            });
+        } else {
+            // Multiple dice - show sum frequencies
+            coins.forEach(coin => {
+                const sums = Object.keys(freq[coin.toLowerCase()]).sort((a,b) => parseInt(a) - parseInt(b));
+                sums.forEach(sum => {
+                    const count = freq[coin.toLowerCase()][sum];
+                    const sumNum = parseInt(sum);
+                    const coinNum = coin === 'Heads' ? 1 : 2;
+                    // For multiple dice, we need to check if this sum could satisfy the condition
+                    // This is approximate since we don't know the individual dice values
+                    const isWin = checkWin([sumNum], coinNum); // Pass sum as single "die" for checking
+                    const label = `${coin}.Sum${sum}`;
+                    addTableRow(tbody, label, count, total, isWin);
+                    if (isWin) totalWins += count;
+                    else totalLosses += count;
+                });
+            });
+        }
         
         // Add total wins and losses
         addTableRow(tbody, 'Total Wins', totalWins, total, true);
         addTableRow(tbody, 'Total Losses', totalLosses, total, false);
     }
 
-    function addTableRow(tbody, label, count, total, isWin) {
-        const row = tbody.insertRow();
-        const cell1 = row.insertCell(0);
-        const cell2 = row.insertCell(1);
-        const cell3 = row.insertCell(2);
-
-        cell1.textContent = label;
-        cell1.className = isWin ? 'win' : 'loss';
-        cell2.textContent = count.toLocaleString();
-        cell2.style.textAlign = 'right';
-        cell3.textContent = ((count / total) * 100).toFixed(2) + '%';
-        cell3.style.textAlign = 'right';
+    function updateRngOptions() {
+        const rngType = document.getElementById('rngType').value;
+        const optionsDiv = document.getElementById('rngOptions');
+        
+        switch(rngType) {
+            case 'coin':
+                optionsDiv.innerHTML = '<p style="color: var(--text); font-size: 0.85rem;">Generates a random coin flip result.</p>';
+                break;
+            case 'die':
+                optionsDiv.innerHTML = '<p style="color: var(--text); font-size: 0.85rem;">Generates a random die roll (1-6).</p>';
+                break;
+            case 'dice':
+                optionsDiv.innerHTML = `
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Number of Dice:</label>
+                    <select id="rngDiceCount" style="width: 100%; padding: 0.75rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; cursor: pointer;">
+                        <option value="1">1 Die</option>
+                        <option value="2">2 Dice</option>
+                        <option value="3">3 Dice</option>
+                        <option value="4">4 Dice</option>
+                        <option value="5">5 Dice</option>
+                        <option value="6">6 Dice</option>
+                    </select>
+                `;
+                break;
+            case 'range':
+                optionsDiv.innerHTML = `
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <div style="flex: 1;">
+                            <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.8rem;">Min:</label>
+                            <input type="number" id="rngMin" value="1" style="width: 100%; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.8rem;">Max:</label>
+                            <input type="number" id="rngMax" value="100" style="width: 100%; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px;">
+                        </div>
+                    </div>
+                `;
+                break;
+        }
     }
 
-    window.onload = initChart;
+    function generateRandom() {
+        const count = parseInt(document.getElementById('rngCount').value) || 1;
+        generateMultipleResults(count);
+    }
+
+    function generateMultiple() {
+        const count = parseInt(document.getElementById('rngCount').value) || 10;
+        generateMultipleResults(count);
+    }
+
+    function generateMultipleResults(count) {
+        const rngType = document.getElementById('rngType').value;
+        const results = [];
+        const stats = {};
+        
+        for (let i = 0; i < count; i++) {
+            let result = '';
+            let statKey = '';
+            
+            switch(rngType) {
+                case 'coin':
+                    result = Math.random() < 0.5 ? 'Heads' : 'Tails';
+                    statKey = result;
+                    break;
+                case 'die':
+                    result = Math.floor(Math.random() * 6) + 1;
+                    statKey = result.toString();
+                    break;
+                case 'dice':
+                    const diceCount = parseInt(document.getElementById('rngDiceCount').value);
+                    const dice = [];
+                    for (let d = 0; d < diceCount; d++) {
+                        dice.push(Math.floor(Math.random() * 6) + 1);
+                    }
+                    const sum = dice.reduce((a, b) => a + b, 0);
+                    result = sum;
+                    statKey = sum.toString();
+                    break;
+                case 'range':
+                    const min = parseInt(document.getElementById('rngMin').value);
+                    const max = parseInt(document.getElementById('rngMax').value);
+                    if (min < max) {
+                        result = Math.floor(Math.random() * (max - min + 1)) + min;
+                        statKey = result.toString();
+                    } else {
+                        result = 'Invalid range';
+                        statKey = 'error';
+                    }
+                    break;
+            }
+            
+            results.push(result);
+            stats[statKey] = (stats[statKey] || 0) + 1;
+        }
+        
+        // Display results
+        if (count === 1) {
+            document.getElementById('rngResult').innerText = results[0];
+            document.getElementById('rngStats').innerText = '--';
+        } else {
+            // Show summary for multiple results
+            const uniqueResults = Object.keys(stats).sort();
+            const summary = uniqueResults.map(key => `${key}: ${stats[key]}`).join(', ');
+            document.getElementById('rngResult').innerText = `Generated ${count} results`;
+            document.getElementById('rngStats').innerText = `Distribution: ${summary}`;
+        }
+    }
+
+    // Initialize RNG options on page load
+    document.getElementById('rngType').addEventListener('change', updateRngOptions);
+    
+    // Initialize everything on page load
+    window.onload = () => {
+        initChart();
+        updateWinCondition();
+        updateTheoreticalProbability();
+        updateRngOptions();
+    };
 </script>
 
 </body>
