@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Probability Engine v2.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+            --success: #22c55e;
+            --fail: #ef4444;
+        }
+
+        body { 
+            font-family: 'Inter', system-ui, sans-serif; 
+            background: linear-gradient(135deg, var(--bg), #1e1b4b); 
+            color: var(--text);
+            display: flex; 
+            justify-content: center; 
+            padding: 2rem;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .panel {
+            background: var(--card);
+            padding: 1.5rem;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+
+        .panel:hover {
+            transform: translateY(-2px);
+        }
+
+        .full-width { grid-column: 1 / -1; }
+
+        h2 { margin-top: 0; font-size: 1.25rem; color: var(--primary); }
+
+        .input-group { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+
+        input {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            padding: 0.75rem;
+            border-radius: 8px;
+            flex-grow: 1;
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        button:hover { 
+            opacity: 0.9; 
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: scale(1.05);
+        }
+
+        .stat-val { font-size: 1.5rem; font-weight: 800; display: block; }
+        .stat-label { font-size: 0.75rem; text-transform: uppercase; opacity: 0.6; }
+
+        #log {
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.8rem;
+            background: #000;
+            padding: 1rem;
+            border-radius: 8px;
+            color: #ccc;
+        }
+
+        .win { color: var(--success); }
+        .loss { color: var(--fail); }
+
+        canvas { max-height: 300px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="panel">
+        <h2>Simulation Controls</h2>
+        <div class="input-group">
+            <input type="number" id="trialInput" value="100" placeholder="Number of trials..." min="1" max="10000">
+            <button onclick="runSim()">Simulate</button>
+        </div>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <span class="stat-label">Total Trials</span>
+                <span id="totalTrials" class="stat-val">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Win Frequency</span>
+                <span id="winRate" class="stat-val">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Frequency Table</h2>
+        <table id="freqTable" style="width: 100%; border-collapse: collapse; color: var(--text);">
+            <thead>
+                <tr style="border-bottom: 1px solid #334155;">
+                    <th style="padding: 0.5rem; text-align: left;">Outcome</th>
+                    <th style="padding: 0.5rem; text-align: right;">Count</th>
+                    <th style="padding: 0.5rem; text-align: right;">Percentage</th>
+                </tr>
+            </thead>
+            <tbody id="freqTableBody">
+                <!-- Rows will be added by JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="panel">
+        <h2>Live Event Log</h2>
+        <div id="log">Waiting for simulation...</div>
+    </div>
+
+    <div class="panel full-width">
+        <h2>Cumulative Frequency Trend</h2>
+        <canvas id="freqChart"></canvas>
+    </div>
+</div>
+
+<script>
+    let chart;
+    let history = [];
+
+    function initChart() {
+        const ctx = document.getElementById('freqChart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Actual Win %',
+                    data: [],
+                    borderColor: '#6366f1',
+                    tension: 0.3,
+                    pointRadius: 0
+                }, {
+                    label: 'Theoretical (50%)',
+                    data: [],
+                    borderColor: 'rgba(255,255,255,0.2)',
+                    borderDash: [5, 5],
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { min: 0, max: 100, grid: { color: '#334155' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { labels: { color: 'white' } } }
+            }
+        });
+    }
+
+    function runSim() {
+        const trials = parseInt(document.getElementById('trialInput').value);
+        const log = document.getElementById('log');
+        log.innerHTML = '';
+        
+        let wins = 0;
+        let freq = {
+            heads: [0,0,0,0,0,0], // die 1-6
+            tails: [0,0,0,0,0,0]
+        };
+        
+        let chartLabels = [];
+        let chartData = [];
+        let theoryData = [];
+
+        for (let i = 1; i <= trials; i++) {
+            const die = Math.floor(Math.random() * 6) + 1;
+            const coin = Math.floor(Math.random() * 2) + 1;
+            
+            const isWin = (die % 2 === 0) === (coin === 2);
+            if (isWin) wins++;
+
+            if (coin === 1) freq.heads[die - 1]++;
+            else freq.tails[die - 1]++;
+
+            const currentRate = (wins / i) * 100;
+
+            // Only update chart data for reasonably sized sets to avoid lag
+            if (trials < 500 || i % Math.floor(trials/100) === 0) {
+                chartLabels.push(i);
+                chartData.push(currentRate);
+                theoryData.push(50);
+            }
+
+            // Log only first 50 results to UI to avoid crash
+            if (i <= 50) {
+                const entry = document.createElement('div');
+                entry.className = isWin ? 'win' : 'loss';
+                entry.innerText = `Trial ${i}: Die ${die}, ${coin === 1 ? 'Heads' : 'Tails'} -> ${isWin ? 'WIN' : 'LOSS'}`;
+                log.appendChild(entry);
+            }
+        }
+
+        // Update Stats
+        document.getElementById('totalTrials').innerText = trials.toLocaleString();
+        document.getElementById('winRate').innerText = ((wins/trials)*100).toFixed(2) + '%';
+        
+        // Update Frequency Table
+        updateFrequencyTable(freq, trials);
+        
+        // Update Chart
+        chart.data.labels = chartLabels;
+        chart.data.datasets[0].data = chartData;
+        chart.data.datasets[1].data = theoryData;
+        chart.update();
+    }
+
+    function updateFrequencyTable(freq, total) {
+        const tbody = document.getElementById('freqTableBody');
+        tbody.innerHTML = '';
+
+        const coins = ['Heads', 'Tails'];
+        let totalWins = 0;
+        let totalLosses = 0;
+        
+        coins.forEach(coin => {
+            for (let die = 1; die <= 6; die++) {
+                const count = freq[coin.toLowerCase()][die - 1];
+                const isWin = (coin === 'Heads' && die % 2 === 1) || (coin === 'Tails' && die % 2 === 0);
+                const label = `${coin}.${die}`;
+                addTableRow(tbody, label, count, total, isWin);
+                if (isWin) totalWins += count;
+                else totalLosses += count;
+            }
+        });
+        
+        // Add total wins and losses
+        addTableRow(tbody, 'Total Wins', totalWins, total, true);
+        addTableRow(tbody, 'Total Losses', totalLosses, total, false);
+    }
+
+    function addTableRow(tbody, label, count, total, isWin) {
+        const row = tbody.insertRow();
+        const cell1 = row.insertCell(0);
+        const cell2 = row.insertCell(1);
+        const cell3 = row.insertCell(2);
+
+        cell1.textContent = label;
+        cell1.className = isWin ? 'win' : 'loss';
+        cell2.textContent = count.toLocaleString();
+        cell2.style.textAlign = 'right';
+        cell3.textContent = ((count / total) * 100).toFixed(2) + '%';
+        cell3.style.textAlign = 'right';
+    }
+
+    window.onload = initChart;
+</script>
+
+</body>
+</html>
