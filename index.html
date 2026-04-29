@@ -260,9 +260,43 @@
         <div id="log">Waiting for simulation...</div>
     </div>
 
+    <div class="panel">
+        <h2>Frequency Summary</h2>
+        <div class="stat-grid" style="margin-bottom: 1rem;">
+            <div class="stat-card">
+                <span class="stat-label">Total Wins</span>
+                <span id="freqTotalWins" class="stat-val">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Total Losses</span>
+                <span id="freqTotalLosses" class="stat-val">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Win Share</span>
+                <span id="freqWinShare" class="stat-val">0%</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Loss Share</span>
+                <span id="freqLossShare" class="stat-val">0%</span>
+            </div>
+        </div>
+        <table style="width:100%; border-collapse: collapse; margin-top: 0.5rem;">
+            <thead>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <th style="text-align:left; padding: 0.75rem 0; color: white; opacity: 0.75;">Category</th>
+                    <th style="text-align:right; padding: 0.75rem 0; color: white; opacity: 0.75;">Count</th>
+                    <th style="text-align:right; padding: 0.75rem 0; color: white; opacity: 0.75;">Share</th>
+                </tr>
+            </thead>
+            <tbody id="freqTableBody"></tbody>
+        </table>
+    </div>
+
     <div class="panel full-width">
         <h2>Cumulative Frequency Trend</h2>
-        <canvas id="freqChart"></canvas>
+        <div style="height: 360px; position: relative;">
+            <canvas id="freqChart"></canvas>
+        </div>
     </div>
 </div>
 
@@ -604,21 +638,25 @@
                     label: 'Actual Win %',
                     data: [],
                     borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99,102,241,0.12)',
                     tension: 0.3,
-                    pointRadius: 0
+                    pointRadius: 0,
+                    borderWidth: 2
                 }, {
                     label: 'Theoretical (50%)',
                     data: [],
-                    borderColor: 'rgba(255,255,255,0.2)',
-                    borderDash: [5, 5],
-                    pointRadius: 0
+                    borderColor: 'rgba(255,255,255,0.75)',
+                    borderDash: [6, 4],
+                    pointRadius: 0,
+                    borderWidth: 2
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 scales: {
-                    y: { min: 0, max: 100, grid: { color: '#334155' } },
-                    x: { grid: { display: false } }
+                    y: { min: 0, max: 100, grid: { color: '#334155' }, ticks: { color: 'white' } },
+                    x: { grid: { display: false }, ticks: { color: 'white' } }
                 },
                 plugins: { legend: { labels: { color: 'white' } } }
             }
@@ -721,48 +759,58 @@
 
     function updateFrequencyTable(freq, total) {
         const tbody = document.getElementById('freqTableBody');
+        if (!tbody) {
+            return;
+        }
         tbody.innerHTML = '';
 
         const coins = ['Heads', 'Tails'];
         let totalWins = 0;
         let totalLosses = 0;
-        
+
+        function addFrequencyRow(label, count, share, isWin) {
+            const row = document.createElement('tr');
+            row.style.borderBottom = '1px solid rgba(255,255,255,0.08)';
+            row.style.color = isWin ? 'var(--success)' : 'var(--text)';
+            row.innerHTML = `
+                <td style="padding: 0.75rem 0;">${label}</td>
+                <td style="text-align:right; padding: 0.75rem 0;">${count.toLocaleString()}</td>
+                <td style="text-align:right; padding: 0.75rem 0;">${share.toFixed(2)}%</td>
+            `;
+            tbody.appendChild(row);
+        }
+
         if (winConditions.diceCount === 1) {
-            // Single die table
             coins.forEach(coin => {
                 for (let die = 1; die <= 6; die++) {
                     const count = freq[coin.toLowerCase()][die - 1];
-                    const dieNum = die;
                     const coinNum = coin === 'Heads' ? 1 : 2;
-                    const isWin = checkWin([dieNum], coinNum);
-                    const label = `${coin}.${die}`;
-                    addTableRow(tbody, label, count, total, isWin);
+                    const isWin = checkWin([die], coinNum);
+                    const share = total > 0 ? (count / total) * 100 : 0;
+                    addFrequencyRow(`${coin} ${die}`, count, share, isWin);
                     if (isWin) totalWins += count;
                     else totalLosses += count;
                 }
             });
         } else {
-            // Multiple dice - show sum frequencies
             coins.forEach(coin => {
                 const sums = Object.keys(freq[coin.toLowerCase()]).sort((a,b) => parseInt(a) - parseInt(b));
                 sums.forEach(sum => {
                     const count = freq[coin.toLowerCase()][sum];
-                    const sumNum = parseInt(sum);
                     const coinNum = coin === 'Heads' ? 1 : 2;
-                    // For multiple dice, we need to check if this sum could satisfy the condition
-                    // This is approximate since we don't know the individual dice values
-                    const isWin = checkWin([sumNum], coinNum); // Pass sum as single "die" for checking
-                    const label = `${coin}.Sum${sum}`;
-                    addTableRow(tbody, label, count, total, isWin);
+                    const isWin = checkWin([parseInt(sum)], coinNum);
+                    const share = total > 0 ? (count / total) * 100 : 0;
+                    addFrequencyRow(`${coin} Sum ${sum}`, count, share, isWin);
                     if (isWin) totalWins += count;
                     else totalLosses += count;
                 });
             });
         }
-        
-        // Add total wins and losses
-        addTableRow(tbody, 'Total Wins', totalWins, total, true);
-        addTableRow(tbody, 'Total Losses', totalLosses, total, false);
+
+        document.getElementById('freqTotalWins').innerText = totalWins.toLocaleString();
+        document.getElementById('freqTotalLosses').innerText = totalLosses.toLocaleString();
+        document.getElementById('freqWinShare').innerText = total > 0 ? ((totalWins / total) * 100).toFixed(2) + '%' : '0%';
+        document.getElementById('freqLossShare').innerText = total > 0 ? ((totalLosses / total) * 100).toFixed(2) + '%' : '0%';
     }
 
     function updateRngOptions() {
